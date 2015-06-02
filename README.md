@@ -1,0 +1,2 @@
+# gone
+Go environment manager 
