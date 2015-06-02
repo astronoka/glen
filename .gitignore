@@ -6,6 +6,10 @@
 # Folders
 _obj
 _test
+buildlog
+env
+installed
+src
 
 # Architecture specific extensions/prefixes
 *.[568vq]
