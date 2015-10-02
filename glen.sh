@@ -50,13 +50,6 @@ download_src () {
   fi
 }
 
-download_src_if_not_exist () {
-  local repo="$GLEN_SRC"
-  if ! [ -d "$repo" ]; then
-    download_src
-  fi
-}
-
 listup_src_tags () {
   local repo="$GLEN_SRC"
   local tags=(`cd "$repo" && git tag`)
@@ -101,16 +94,17 @@ ACTIVATE_SCRIPT
 }
 
 glen_available () {
-  download_src_if_not_exist
-
+  download_src
   local tags=(`listup_src_tags`)
   for tag in "${tags[@]}"; do
-    echo "$tag"
+    if [[ "$tag" =~ ^go.*$ ]]; then
+      echo "$tag"
+    fi
   done
 }
 
 glen_list () {
-  download_src_if_not_exist
+  download_src
   local installed_versions=(`listup_installed_versions`)
   for version in "${installed_versions[@]}"; do
     echo "$version"
@@ -123,7 +117,7 @@ glen_installed () {
 }
 
 glen_install () {
-  download_src_if_not_exist
+  download_src
 
   local version="$1"
   if [ -z "$version" ]; then
@@ -167,7 +161,7 @@ build () {
   local logfile="$GLEN_BUILDLOG/$version-$datetime.log"
 
   cd "$repo"
-  if eval "git checkout "$version" &> $logfile"; then
+  if eval "git checkout -f "$version" &> $logfile"; then
     cd src
     rm -rf pkg && rm -rf bin
     if ./all.bash 2>&1 | tee -a "$logfile"; then
