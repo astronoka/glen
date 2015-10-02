@@ -128,6 +128,27 @@ glen_install () {
     error "already installed: $version"
     return 0
   fi
+
+  # To build Go 1.x, for x ≥ 5, it will be necessary
+  # to have Go 1.4 (or newer) installed already, in $GOROOT_BOOTSTRAP.
+  # see also: https://docs.google.com/document/d/1OaatvGhEAq7VseQ9kkavxKNAfepWy2yhPUBs96FGV28/edit
+  if [[ "$version" =~ ^go([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?$ ]]; then
+    local major_ver="${BASH_REMATCH[1]}"
+    local minor_ver="${BASH_REMATCH[3]:-0}"
+    local patch_ver_unused="${BASH_REMATCH[5]:-0}"
+    if [ $major_ver -ge 1 -a $minor_ver -ge 5 ]; then
+      local bootstrap_go_version="go1.4.3"
+      if ! glen_installed "$bootstrap_go_version"; then
+        echo "to install ${version}, ${bootstrap_go_version} required."
+        echo "auto install ${bootstrap_go_version}"
+        if ! glen_install "$bootstrap_go_version"; then
+          die "install ${bootstrap_go_version} failed."
+        fi
+      fi
+      export GOROOT_BOOTSTRAP="$GLEN_ROOT/$bootstrap_go_version/"
+    fi
+  fi
+
   local install="$GLEN_ROOT/$version"
   ensure_dir "$install"
 
@@ -135,9 +156,10 @@ glen_install () {
   local ret=$?
   if [ $ret -ne 0 ]; then
     remove_dir "$install"
-    return $ret
+  else
+    echo "successfully installed: $version" >&2
   fi
-  echo "successfully installed: $version" >&2
+  return $ret
 }
 
 glen_uninstall () {
@@ -162,9 +184,12 @@ build () {
 
   cd "$repo"
   if eval "git checkout -f "$version" &> $logfile"; then
+    git clean -fd
     cd src
     rm -rf pkg && rm -rf bin
-    if ./all.bash 2>&1 | tee -a "$logfile"; then
+    export GOROOT_FINAL="$godir"
+    ./all.bash 2>&1 | tee -a "$logfile"
+    if [[ "${PIPESTATUS[0]}" -eq 0 ]]; then
       cd "$repo"
       rsync -av --exclude='.git*' . "$godir" 2>&1 | tee -a "$logfile"
     else
