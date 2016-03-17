@@ -275,11 +275,11 @@ glen_env_create () {
   local envname="$1"
   local version="$2"
   if [ -z "$envname" ]; then
-    error "usage: glen mkenv <envname> <version>"
+    error "usage: glen env create <envname> <version>"
     die "envname required."
   fi
   if [ -z "$version" ]; then
-    error "usage: glen mkenv <envname> <version>"
+    error "usage: glen env create <envname> <version>"
     die "version required."
   fi
   if [ -d "$GLEN_ENV/$envname" ]; then
@@ -398,10 +398,11 @@ install <version>               Install the version passed (ex: go1.5.3)
 uninstall <version>             Delete the install for <version>
 list                            List installed versions
 available                       List available versions (tags)
+
 env list                        List environments
 env create <envname> <version>  Create environment
 env delete <envname>            Delete environment
-workon <envname>                Activate environment
+env use    <envname>            Activate environment
 
 EOF
 }
