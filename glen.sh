@@ -89,7 +89,7 @@ output_activate_script () {
   local envname="$1"
   local version="$2"
 
-  local go_root=""
+  local go_root="$GLEN_ROOT/$version"
   local go_path="$GLEN_ENV/$envname"
   local go_version="$version"
   local go_bin_path="$go_path/bin":"$GLEN_ROOT/$version/bin"
