@@ -19,6 +19,21 @@ if ! type git > /dev/null; then
   exit 1
 fi
 
+uname="$(uname -a)"
+os=
+arch=
+case "$uname" in
+  Linux\ *) os=linux ;;
+  Darwin\ *) os=darwin ;;
+  FreeBSD\ *) os=freebsd ;;
+esac
+case "$uname" in
+  *i386*) arch="386" ;;
+  *x86_64*) arch="amd64" ;;
+esac
+
+tar=${TAR-tar}
+
 ensure_dir () {
   if ! [ -d "$1" ]; then
     mkdir -p -- "$1" || die "couldn't create $1"
@@ -129,26 +144,6 @@ glen_install () {
     return 0
   fi
 
-  # To build Go 1.x, for x ≥ 5, it will be necessary
-  # to have Go 1.4 (or newer) installed already, in $GOROOT_BOOTSTRAP.
-  # see also: https://docs.google.com/document/d/1OaatvGhEAq7VseQ9kkavxKNAfepWy2yhPUBs96FGV28/edit
-  if [[ "$version" =~ ^go([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?$ ]]; then
-    local major_ver="${BASH_REMATCH[1]}"
-    local minor_ver="${BASH_REMATCH[3]:-0}"
-    local patch_ver_unused="${BASH_REMATCH[5]:-0}"
-    if [ $major_ver -ge 1 -a $minor_ver -ge 5 ]; then
-      local bootstrap_go_version="go1.4.3"
-      if ! glen_installed "$bootstrap_go_version"; then
-        echo "to install ${version}, ${bootstrap_go_version} required."
-        echo "auto install ${bootstrap_go_version}"
-        if ! glen_install "$bootstrap_go_version"; then
-          die "install ${bootstrap_go_version} failed."
-        fi
-      fi
-      export GOROOT_BOOTSTRAP="$GLEN_ROOT/$bootstrap_go_version/"
-    fi
-  fi
-
   local install="$GLEN_ROOT/$version"
   ensure_dir "$install"
 
@@ -182,6 +177,46 @@ build () {
   local datetime=`date +"%Y%m%d%H%M%S"`
   local logfile="$GLEN_BUILDLOG/$version-$datetime.log"
 
+  if [ -n "$os" ]; then
+    local archive_name="$version.$os-$arch.tar.gz"
+    local archive_url="https://storage.googleapis.com/golang/$archive_name"
+    local local_archive_file="$GLEN_SRC/$archive_name"
+    download_file -#Lf "$archive_url" > "$local_archive_file"
+    if [ $? -ne 0 ]; then
+      rm "$local_archive_file"
+    else
+      $tar xzf "$local_archive_file" -C "$godir" --strip-components 1
+      if [ $? -ne 0 ]; then
+        rm "$local_archive_file"
+        glen_uninstall "$version"
+        error "binary unpack failed, trying source."
+      fi
+      echo "installed from binary" >&2
+      return 0
+    fi
+    echo "binary download failed, trying source." >&2
+  fi
+
+  # To build Go 1.x, for x ≥ 5, it will be necessary
+  # to have Go 1.4 (or newer) installed already, in $GOROOT_BOOTSTRAP.
+  # see also: https://docs.google.com/document/d/1OaatvGhEAq7VseQ9kkavxKNAfepWy2yhPUBs96FGV28/edit
+  if [[ "$version" =~ ^go([0-9]+)(\.([0-9]+)(\.([0-9]+))?)?$ ]]; then
+    local major_ver="${BASH_REMATCH[1]}"
+    local minor_ver="${BASH_REMATCH[3]:-0}"
+    local patch_ver_unused="${BASH_REMATCH[5]:-0}"
+    if [ $major_ver -ge 1 -a $minor_ver -ge 5 ]; then
+      local bootstrap_go_version="go1.4.3"
+      if ! glen_installed "$bootstrap_go_version"; then
+        echo "to install ${version}, ${bootstrap_go_version} required."
+        echo "auto install ${bootstrap_go_version}"
+        if ! glen_install "$bootstrap_go_version"; then
+          die "install ${bootstrap_go_version} failed."
+        fi
+      fi
+      export GOROOT_BOOTSTRAP="$GLEN_ROOT/$bootstrap_go_version/"
+    fi
+  fi
+
   cd "$repo"
   if eval "git checkout -f "$version" &> $logfile"; then
     git clean -fd
@@ -200,6 +235,11 @@ build () {
     error "invalid version. : $version"
     return 1
   fi
+}
+
+download_file () {
+  curl -H "user-agent:glen/$(curl --version | head -n1)" "$@"
+  return $?
 }
 
 glen_env () {
@@ -260,8 +300,8 @@ glen_env_create () {
   local env="$GLEN_ENV/$envname"
   ensure_dir "$env"
 
-	local script=`output_activate_script $envname $version`
- 	echo "$script" > "$env/activate.sh"
+  local script=`output_activate_script $envname $version`
+  echo "$script" > "$env/activate.sh"
 }
 
 glen_env_delete () {
@@ -278,7 +318,6 @@ glen_env_use () {
 }
 
 glen_workon () {
-
   local envname="$1"
   if [ -z "$envname" ]; then
     die "envname required."
@@ -343,7 +382,7 @@ main () {
 }
 
 glen_version () {
-  echo "0.1.0"
+  echo "0.1.2"
 }
 
 glen_help () {
@@ -355,7 +394,7 @@ Commands:
 
 version                         Print glen version
 help                            Output help text
-install <version>               Install the version passed (ex: go1.4.2)
+install <version>               Install the version passed (ex: go1.5.3)
 uninstall <version>             Delete the install for <version>
 list                            List installed versions
 available                       List available versions (tags)
