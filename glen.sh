@@ -106,7 +106,7 @@ export PATH="$go_bin_path:\$PATH"
 ACTIVATE_SCRIPT
 }
 
-glen_available () {
+glen_tags () {
   download_src
   local tags=(`listup_src_tags`)
   for tag in "${tags[@]}"; do
@@ -394,7 +394,7 @@ main () {
   local cmd="$1"
   shift
   case $cmd in
-    version | list | available | update | install | uninstall | \
+    version | list | tags | update | install | uninstall | \
     use | env | workon )
       cmd="glen_$cmd"
       ;;
@@ -429,7 +429,7 @@ install <version>               Install the version passed (ex: go1.5.3)
 uninstall <version>             Delete the install for <version>
 use <version>                   Activate specified <version>
 list                            List installed versions
-available                       List available versions (tags)
+tags                            List available versions (tags)
 
 env list                        List environments
 env create <envname> <version>  Create environment
