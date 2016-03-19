@@ -274,7 +274,6 @@ download_file () {
 }
 
 glen_env () {
-
   local cmd="$1"
   shift
   case $cmd in
@@ -290,7 +289,7 @@ glen_env () {
   if [ $ret -eq 0 ]; then
     return 0
   else
-    echo "failed with code=$ret" >&2
+    echo "env failed with code=$ret" >&2
     return $ret
   fi
 }
@@ -351,7 +350,7 @@ glen_env_use () {
   fi
 
   if [ "$envname" == "$GLEN_ENV_NAME" ]; then
-    error "already workon $envname" >&2
+    error "already using env $envname" >&2
     exit 0
   fi
 
