@@ -359,12 +359,6 @@ glen_env_use () {
     die "env not found. : $envname"
   fi
 
-  type deactivate >/dev/null 2>&1
-  if [ $? -eq 0 ]; then
-      deactivate
-      unset -f deactivate >/dev/null 2>&1
-  fi
-
   GLEN_ENV_NAME=$envname \
     "$SHELL" --rcfile "$activate_script"
 
