@@ -345,10 +345,6 @@ glen_env_delete () {
 }
 
 glen_env_use () {
-  glen_workon "$@"
-}
-
-glen_workon () {
   local envname="$1"
   if [ -z "$envname" ]; then
     die "envname required."
@@ -395,7 +391,7 @@ main () {
   shift
   case $cmd in
     version | list | tags | update | install | uninstall | \
-    use | env | workon )
+    use | env )
       cmd="glen_$cmd"
       ;;
     * )
