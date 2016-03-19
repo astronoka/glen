@@ -374,6 +374,83 @@ glen_env_use () {
   return $exit_code
 }
 
+glen_vendor () {
+  local cmd="$1"
+  shift
+  case $cmd in
+    init | use )
+      cmd="glen_vendor_$cmd"
+      ;;
+    * )
+      cmd="glen_help"
+      ;;
+  esac
+  $cmd "$@"
+  local ret=$?
+  if [ $ret -eq 0 ]; then
+    return 0
+  else
+    echo "failed with code=$ret" >&2
+    return $ret
+  fi
+}
+
+glen_vendor_init () {
+  local version="$1"
+  if [ -z "$version" ]; then
+    error "usage: glen vendor init <version>"
+    die "version required."
+  fi
+
+  if ! glen_installed "$version"; then
+    error "version not installed: $version"
+    error "-- installed version"
+    local installed_versions=(`listup_installed_versions`)
+    for version in "${installed_versions[@]}"; do
+      error "$version"
+    done
+    die "--"
+  fi
+
+  local workspace_dir=(`pwd`)
+  local rcfile="$workspace_dir/glenrc"
+
+  if [ -f "$rcfile" ]; then
+    die "glenrc exist! already initialized"
+  fi
+
+  local go_path_dir="$workspace_dir/vendor"
+  ensure_dir "$go_path_dir"
+  echo "create vendor directory" >&2
+
+  #local label="${workspace_dir##*/}"
+  local label="\`basename \$(pwd)\`"
+
+  local go_path="\`pwd\`/vendor"
+  local script=`output_activate_script "$label" "$version" "$go_path"`
+  echo "$script" > "$rcfile"
+  echo "create glenrc" >&2
+
+  echo "successfully initialized: $workspace_dir" >&2
+}
+
+glen_vendor_use () {
+  local workspace_dir=(`pwd`)
+  local activate_script="$workspace_dir/glenrc"
+  if [ ! -f "$activate_script" ]; then
+    die "'$workspace_dir' does not contain an activate script."
+  fi
+
+  local label="${workspace_dir##*/}"
+
+  GLEN_ENV_NAME=$label \
+    "$SHELL" --rcfile "$activate_script"
+
+  exit_code=$?
+  hash -r
+  return $exit_code
+}
+
 main () {
 
   export GLEN_DIR
@@ -391,7 +468,7 @@ main () {
   shift
   case $cmd in
     version | list | tags | update | install | uninstall | \
-    use | env )
+    use | env | vendor )
       cmd="glen_$cmd"
       ;;
     * )
@@ -431,6 +508,9 @@ env list                        List environments
 env create <envname> <version>  Create environment
 env delete <envname>            Delete environment
 env use    <envname>            Activate environment
+
+vendor init <version>           Initialize current directory as workspace
+vendor use                      Activate current directory as workspace
 
 EOF
 }
