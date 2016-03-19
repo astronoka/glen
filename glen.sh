@@ -451,6 +451,22 @@ glen_vendor_use () {
   return $exit_code
 }
 
+glen_tools () {
+  if [ -z "$GLEN_ENV_NAME" ]; then
+    die "glen is not active"
+  fi
+  local tools_file="$GLEN_DIR/tools.txt"
+  if [ ! -f "$tools_file" ]; then
+    echo "tools.txt not exist on $GLEN_DIR" >&2
+    return 0
+  fi
+  local tools=(`cat $tools_file`)
+  for tool in "${tools[@]}"; do
+    echo "go get $tool into $GOPATH"
+    go get "$tool"
+  done
+}
+
 main () {
 
   export GLEN_DIR
@@ -468,7 +484,7 @@ main () {
   shift
   case $cmd in
     version | list | tags | update | install | uninstall | \
-    use | env | vendor )
+    use | env | vendor | tools )
       cmd="glen_$cmd"
       ;;
     * )
@@ -511,6 +527,8 @@ env use    <envname>            Activate environment
 
 vendor init <version>           Initialize current directory as workspace
 vendor use                      Activate current directory as workspace
+
+tools                           Install develop tools (goimports,gorename...)
 
 EOF
 }
