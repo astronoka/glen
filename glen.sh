@@ -85,20 +85,18 @@ if ! [ -d "$GLEN_DIR" ]; then
 fi
 
 output_activate_script () {
-
-  local envname="$1"
+  local label="$1"
   local version="$2"
+  local go_path="$3"
+  local go_root="\$GLEN_ROOT/$version"
 
-  local go_root="$GLEN_ROOT/$version"
-  local go_path="$GLEN_ENV/$envname"
-  local go_version="$version"
-  local go_bin_path="$go_path/bin":"$GLEN_ROOT/$version/bin"
-  local ps1="($envname:$go_version)\$PS1"
+  local go_bin_path="$go_path/bin":"\$GLEN_ROOT/$version/bin"
+  local ps1="($label:$version)\$PS1"
 
   cat <<ACTIVATE_SCRIPT
 #!/bin/sh
 
-[ -f $GLEN_DIR/.glenrc ] && . $GLEN_DIR/.glenrc || true
+[ -f \$GLEN_DIR/.glenrc ] && . \$GLEN_DIR/.glenrc || true
 
 export GOROOT="$go_root"
 export GOPATH="$go_path"
@@ -152,6 +150,10 @@ glen_install () {
   if [ $ret -ne 0 ]; then
     remove_dir "$install"
   else
+    local go_path_dir="$install/glen"
+    ensure_dir "$go_path_dir"
+    local script=`output_activate_script glen "$version" "\$GLEN_ROOT/$version/glen"`
+    echo "$script" > "$install/activate.sh"
     echo "successfully installed: $version" >&2
   fi
   return $ret
@@ -168,6 +170,35 @@ glen_uninstall () {
   fi
   local install="$GLEN_ROOT/$version"
   remove_dir "$install"
+}
+
+glen_use () {
+  local version="$1"
+  if [ -z "$version" ]; then
+    error "usage: glen use <version>"
+    die "version required."
+  fi
+  if ! glen_installed "$version"; then
+    error "version not installed: $version"
+    error "-- installed version"
+    local installed_versions=(`listup_installed_versions`)
+    for version in "${installed_versions[@]}"; do
+      error "$version"
+    done
+    die "--"
+  fi
+  local install="$GLEN_ROOT/$version"
+  local activate_script="$install/activate.sh"
+  if [ ! -f "$activate_script" ]; then
+    die "'$install' does not contain an activate script."
+  fi
+
+  GLEN_ENV_NAME=$version \
+    "$SHELL" --rcfile "$activate_script"
+
+  exit_code=$?
+  hash -r
+  return $exit_code
 }
 
 build () {
@@ -297,11 +328,11 @@ glen_env_create () {
     die "--"
   fi
 
-  local env="$GLEN_ENV/$envname"
-  ensure_dir "$env"
+  local go_path_dir="$GLEN_ENV/$envname"
+  ensure_dir "$go_path_dir"
 
-  local script=`output_activate_script $envname $version`
-  echo "$script" > "$env/activate.sh"
+  local script=`output_activate_script "$envname" "$version" "\$GLEN_ENV/$envname"`
+  echo "$script" > "$go_path_dir/activate.sh"
 }
 
 glen_env_delete () {
@@ -364,7 +395,7 @@ main () {
   shift
   case $cmd in
     version | list | available | update | install | uninstall | \
-    env | workon )
+    use | env | workon )
       cmd="glen_$cmd"
       ;;
     * )
@@ -396,6 +427,7 @@ version                         Print glen version
 help                            Output help text
 install <version>               Install the version passed (ex: go1.5.3)
 uninstall <version>             Delete the install for <version>
+use <version>                   Activate specified <version>
 list                            List installed versions
 available                       List available versions (tags)
 
