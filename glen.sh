@@ -99,7 +99,6 @@ output_activate_script () {
 [ -f \$GLEN_DIR/.glenrc ] && . \$GLEN_DIR/.glenrc || true
 
 export GOROOT="$go_root"
-export GOPATH="$go_path"
 export PS1="$ps1"
 export PATH="$go_bin_path:\$PATH"
 
